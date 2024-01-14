@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: http-streamlit-ingress
+  namespace: demo-streamlit
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: 'true'
+  labels:
+    rollout.one-click.dev/name: streamlit
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: streamlit.demo.one-click.dev
+      http:
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: http-streamlit-svc
+                port:
+                  number: 1880

@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: data
+  namespace: demo-node-red
+  labels:
+    rollout.one-click.dev/name: node-red
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+  volumeName: pvc-da5fe040-5d87-4e73-8ab4-c07b2025e855
+  storageClassName: standard-rwo
+  volumeMode: Filesystem
