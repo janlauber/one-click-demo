@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "one-click-demo"
+version = "0.1.0"
+description = ""
+authors = ["Jan Lauber <jan.lauber@protonmail.ch>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+streamlit = "^1.30.0"
+watchdog = "^3.0.0"
+bs4 = "^0.0.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

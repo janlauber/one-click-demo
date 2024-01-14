@@ -1,0 +1,67 @@
+apiVersion: one-click.dev/v1alpha1
+kind: Rollout
+metadata:
+  name: streamlit
+  namespace: streamlit
+spec:
+  image:
+    registry: "ghcr.io"
+    repository: "janlauber/one-click-demo"
+    tag: "latest"
+    # username: "test"
+    # password: "test3"
+  horizontalScale:
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 80
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "200m"
+      memory: "256Mi"
+  # env:
+  #   - name: "REFLEX_USERNAME"
+  #     value: "admin"
+  #   - name: DEBUG
+  #     value: "true"
+  # secrets:
+  #   - name: "REFLEX_PASSWORD"
+  #     value: "admin"
+  #   - name: "ANOTHER_SECRET"
+  #     value: "122"
+  # volumes:
+  #   - name: "data"
+  #     mountPath: "/data"
+  #     size: "2Gi"
+  #     storageClass: "standard"
+  interfaces:
+    - name: "http"
+      port: 8501
+      ingress:
+        ingressClass: "nginx"
+        annotations:
+          nginx.ingress.kubernetes.io/rewrite-target: /
+          nginx.ingress.kubernetes.io/ssl-redirect: "true"
+          cert-manager.io/cluster-issuer: letsencrypt-prod
+          cert-manager.io/private-key-rotation-policy: "Always"
+        rules:
+          - host: "streamlit.demo.one-click.dev"
+            path: "/test"
+            tls: false
+    # - name: "https"
+    #   port: 443
+    #   ingress:
+    #     ingressClass: "nginx"
+    #     annotations:
+    #       nginx.ingress.kubernetes.io/rewrite-target: /
+    #       nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    #     rules:
+    #       - host: "reflex.oneclickapps.dev"
+    #         path: "/test"
+    #         tls: false
+    #       - host: "reflex.oneclickapps.dev"
+    #         path: "/test"
+    #         tls: false
+  serviceAccountName: "nginx"
