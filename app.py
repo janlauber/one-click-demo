@@ -1,13 +1,14 @@
 import os
-from datetime import date, timedelta
+from datetime import date
 
 import pandas as pd
 import plotly.express as px
 import streamlit as st
 from dotenv import load_dotenv
 from sqlalchemy import Column, Date, Float, ForeignKey, Integer, String, create_engine
-from sqlalchemy.orm import declarative_base, relationship, sessionmaker
+from sqlalchemy.orm import declarative_base, joinedload, relationship, sessionmaker
 from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.pool import NullPool
 
 # Load environment variables
 load_dotenv()
@@ -21,10 +22,10 @@ DATABASE_URL = f"mysql+mysqlconnector://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NA
 
 # SQLAlchemy setup
 Base = declarative_base()
-engine = create_engine(DATABASE_URL)
+engine = create_engine(DATABASE_URL, poolclass=NullPool)  # Use NullPool for Kubernetes
 Session = sessionmaker(bind=engine)
-session = Session()
 
+session = Session()
 
 class Exercise(Base):
     __tablename__ = "exercises"
@@ -40,7 +41,7 @@ class WorkoutLog(Base):
     sets = Column(Integer, nullable=False)
     reps = Column(Integer, nullable=False)
     weight = Column(Float, nullable=False)
-    exercise = relationship("Exercise")
+    exercise = relationship("Exercise", lazy="joined")
 
 
 # Create the tables if they don't exist
@@ -49,15 +50,18 @@ Base.metadata.create_all(engine)
 
 # Function to insert a workout log
 def insert_workout_log(date, exercise_id, sets, reps, weight):
+    session = Session()
     new_log = WorkoutLog(
         date=date, exercise_id=exercise_id, sets=sets, reps=reps, weight=weight
     )
     session.add(new_log)
     session.commit()
+    session.close()
 
 
 # Function to update a workout log
 def update_workout_log(log_id, date, exercise_id, sets, reps, weight):
+    session = Session()
     log = session.query(WorkoutLog).filter_by(id=log_id).one()
     log.date = date
     log.exercise_id = exercise_id
@@ -65,50 +69,67 @@ def update_workout_log(log_id, date, exercise_id, sets, reps, weight):
     log.reps = reps
     log.weight = weight
     session.commit()
+    session.close()
 
 
 # Function to delete a workout log
 def delete_workout_log(log_id):
+    session = Session()
     log = session.query(WorkoutLog).filter_by(id=log_id).one()
     session.delete(log)
     session.commit()
+    session.close()
 
 
 # Function to retrieve all workout logs
 def get_workout_logs():
-    return session.query(WorkoutLog).all()
+    session = Session()
+    logs = session.query(WorkoutLog).options(joinedload(WorkoutLog.exercise)).all()
+    session.close()
+    return logs
 
 
 # Function to get all exercises
 def get_exercises():
-    return session.query(Exercise).all()
+    session = Session()
+    exercises = session.query(Exercise).all()
+    session.close()
+    return exercises
 
 
 # Function to insert a new exercise
 def insert_exercise(name):
+    session = Session()
     new_exercise = Exercise(name=name)
     session.add(new_exercise)
     session.commit()
+    session.close()
 
 
 # Function to get the last log for a specific exercise
 def get_last_log(exercise_id):
-    return (
+    session = Session()
+    log = (
         session.query(WorkoutLog)
         .filter_by(exercise_id=exercise_id)
         .order_by(WorkoutLog.date.desc())
         .first()
     )
+    session.close()
+    return log
 
 
 # Function to get the workout logs for an exercise
 def get_exercise_logs(exercise_id):
-    return (
+    session = Session()
+    logs = (
         session.query(WorkoutLog)
         .filter_by(exercise_id=exercise_id)
         .order_by(WorkoutLog.date)
         .all()
     )
+    session.close()
+    return logs
 
 
 # Function to calculate the recommended weight
@@ -116,7 +137,6 @@ def calculate_recommendation(logs, base_increase=2.5, max_increase=5.0, min_sess
     if len(logs) < min_sessions:
         return None
 
-    # Consider only the last few sessions
     recent_logs = logs[-min_sessions:]
     success = all(
         log.reps >= 8 for log in recent_logs
