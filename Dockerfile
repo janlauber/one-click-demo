@@ -1,48 +1,22 @@
-ARG POETRY_VERSION=1.4
+# app/Dockerfile
 
-FROM python:3.12-slim as base
-WORKDIR /streamlit
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONFAULTHANDLER=1 \
-    PYTHONUNBUFFERED=1
+FROM python:3.12-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    software-properties-common \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN git clone https://github.com/streamlit/streamlit-example.git .
+
+RUN pip3 install -r requirements.txt
+
 EXPOSE 8501
 
-FROM base as poetry
-ARG POETRY_VERSION
-ENV POETRY_CACHE_DIR=/opt/.poetry-cache \
-    PIP_DEFAULT_TIMEOUT=100 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PIP_IGNORE_INSTALLED=1 \
-    PIP_NO_CACHE_DIR=1
-# hadolint ignore=DL3013
-RUN pip install --upgrade pip setuptools \
-    && pip install poetry=="${POETRY_VERSION}"
-COPY pyproject.toml poetry.lock* ./
-# hadolint ignore=SC1091
-RUN python -m venv /venv \
-    && . /venv/bin/activate \
-    && poetry install --only main \
-    --no-root --no-interaction --no-ansi
-COPY <<-EOT /entrypoint.sh
-#!/usr/bin/env sh
-set -e
-. /venv/bin/activate
-exec "\$@"
-EOT
+HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health
 
-RUN chmod +x /entrypoint.sh
-ENTRYPOINT ["/entrypoint.sh"]
-
-FROM poetry as dev
-# hadolint ignore=SC1091
-RUN . /venv/bin/activate \
-    && poetry install \
-    --no-root --no-interaction --no-ansi
-COPY . .
-CMD ["streamlit", "run", "./app/🏠_Home.py"]
-
-FROM base as prod
-COPY --from=poetry /venv /venv
-ENV PATH="/venv/bin:${PATH}"
-COPY . .
-CMD ["streamlit", "run", "./app/🏠_Home.py", "--server.port=8501", "--server.address=0.0.0.0"]
+ENTRYPOINT ["streamlit", "run", "streamlit_app.py", "--server.port=8501", "--server.address=0.0.0.0"]
